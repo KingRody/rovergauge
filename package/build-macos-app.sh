@@ -6,10 +6,23 @@
 #   cmake --build build
 #   package/build-macos-app.sh
 #
-# Produces package/RoverGauge-<version>-macOS-<arch>.zip: a self-contained,
-# ad-hoc signed app bundle with Qt and libcomm14cux embedded. Unsigned (no
-# Apple Developer ID), so recipients will see a Gatekeeper warning on first
-# launch (right-click -> Open, or `xattr -cr RoverGauge.app`).
+# Produces package/rovergauge-<version>-macOS-<arch>.zip: a self-contained
+# app bundle with Qt and libcomm14cux embedded.
+#
+# By default the bundle is ad-hoc signed only, so recipients will see a
+# Gatekeeper warning on first launch (right-click -> Open, or
+# `xattr -cr RoverGauge.app`).
+#
+# To sign with a real Developer ID (removes the Gatekeeper warning), set:
+#   SIGN_IDENTITY="Developer ID Application: Name (TEAMID)"
+# To also notarize and staple the ticket (recipients get zero warnings, even
+# offline), additionally set:
+#   NOTARY_PROFILE="<profile name>"
+# where the profile was created beforehand via:
+#   xcrun notarytool store-credentials "<profile name>" \
+#     --apple-id "you@example.com" --team-id "TEAMID" --password "app-specific-password"
+# (run that command yourself, not through an agent, so the password is never
+# exposed outside your own keychain)
 
 set -euo pipefail
 
@@ -39,7 +52,12 @@ VERSION="$VER_MAJOR.$VER_MINOR.$VER_PATCH"
 ARCH=$(uname -m)
 
 APP="$PACKAGE_DIR/RoverGauge.app"
-ZIPNAME="RoverGauge-$VERSION-macOS-$ARCH.zip"
+ZIPNAME="rovergauge-$VERSION-macOS-$ARCH.zip"
+
+if [ -n "${NOTARY_PROFILE:-}" ] && [ -z "${SIGN_IDENTITY:-}" ]; then
+  echo "error: NOTARY_PROFILE is set but SIGN_IDENTITY is not. Notarization requires a Developer ID signature; ad-hoc signatures cannot be notarized." >&2
+  exit 1
+fi
 
 echo "==> Packaging RoverGauge $VERSION ($ARCH)"
 
@@ -101,12 +119,32 @@ PLIST
 echo "==> Running macdeployqt (bundles Qt frameworks, plugins, and libcomm14cux)"
 "$QT5_PREFIX/bin/macdeployqt" "$APP"
 
-echo "==> Re-signing (ad-hoc)"
-# macdeployqt rewrites load commands (rpaths/install names), which invalidates
-# the linker's original ad-hoc signature. Apple Silicon refuses to execute an
-# unsigned/invalidly-signed binary at all (silent SIGKILL), so this step is
-# required, not optional, even for a purely local/unsigned distribution.
-codesign --force --deep --sign - "$APP"
+# macdeployqt rewrites load commands (rpaths/install names), which
+# invalidates any signature applied before this point. Apple Silicon refuses
+# to execute an unsigned/invalidly-signed binary at all (silent SIGKILL), so
+# (re-)signing here is required, not optional, even for local/unsigned use.
+if [ -n "${SIGN_IDENTITY:-}" ]; then
+  echo "==> Signing with Developer ID: $SIGN_IDENTITY"
+  codesign --force --deep --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP"
+
+  if [ -n "${NOTARY_PROFILE:-}" ]; then
+    echo "==> Submitting for notarization (profile: $NOTARY_PROFILE)"
+    NOTARIZE_ZIP="$PACKAGE_DIR/notarize-submission.zip"
+    rm -f "$NOTARIZE_ZIP"
+    ditto -c -k --keepParent "$APP" "$NOTARIZE_ZIP"
+    xcrun notarytool submit "$NOTARIZE_ZIP" --keychain-profile "$NOTARY_PROFILE" --wait
+    rm -f "$NOTARIZE_ZIP"
+
+    echo "==> Stapling notarization ticket"
+    xcrun stapler staple "$APP"
+
+    echo "==> Verifying with spctl"
+    spctl -a -vvv -t install "$APP"
+  fi
+else
+  echo "==> Re-signing (ad-hoc)"
+  codesign --force --deep --sign - "$APP"
+fi
 
 echo "==> Zipping"
 cd "$PACKAGE_DIR"
