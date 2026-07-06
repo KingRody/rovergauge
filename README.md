@@ -25,7 +25,11 @@ If you're running Linux, you can get a Debian package (.DEB) for your system's a
 
  - https://github.com/colinbourassa/rovergauge/releases/latest
 
-It's also possible to build RoverGauge from the code yourself. This can be done with Linux or Windows. In either case, you'll need CMake (version 3.18 or newer) as well as version 5.x of the Qt SDK.
+If you're running macOS on Apple Silicon, this fork provides a signed and notarized build that installs and runs without any Gatekeeper warnings:
+
+ - https://github.com/KingRody/rovergauge/releases
+
+It's also possible to build RoverGauge from the code yourself. This can be done with Linux, Windows, or macOS. In each case, you'll need CMake (version 3.18 or newer) as well as version 5.x of the Qt SDK. On macOS, after building, `package/build-macos-app.sh` will package a self-contained `.app` bundle (see the comments at the top of that script for optional Developer ID signing and notarization).
 
 ## Building interface cable
 
