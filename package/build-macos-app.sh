@@ -149,7 +149,12 @@ fi
 echo "==> Zipping"
 cd "$PACKAGE_DIR"
 rm -f "$ZIPNAME"
-ditto -c -k --sequesterRsrc --keepParent "RoverGauge.app" "$ZIPNAME"
+# --norsrc: --sequesterRsrc embeds resource-fork/HFS metadata as separate
+# "._*" AppleDouble entries inside the zip. On extraction these land as
+# loose, unsigned files in each Qt framework's root directory, which Gatekeeper
+# rejects as "unsealed contents present in the root directory of an embedded
+# framework" -- regardless of a valid notarization ticket.
+ditto -c -k --norsrc --keepParent "RoverGauge.app" "$ZIPNAME"
 
 echo "==> Done: package/$ZIPNAME"
 du -sh "$ZIPNAME"
