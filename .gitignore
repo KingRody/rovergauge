@@ -26,3 +26,6 @@ rovergauge-*.zip
 *.deb
 *.tar.gz
 build*/
+package/RoverGauge.app/
+package/RoverGauge.icns
+package/RoverGauge-*.zip
