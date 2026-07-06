@@ -220,54 +220,86 @@ if (MINGW)
   include (CPack)
 
 else()
-  message (STATUS "Defaulting to Linux build environment.")
-
   target_link_libraries (rovergauge comm14cux Qt5::Widgets)
 
-  set (CMAKE_SKIP_RPATH TRUE)
-  set (CMAKE_INSTALL_PREFIX "/usr")
+  if (APPLE)
+    message (STATUS "Defaulting to macOS build environment.")
 
-  # set the installation destinations for the header files,
-  # shared library binaries, and reference utility
-  install (FILES "${CMAKE_CURRENT_BINARY_DIR}/rovergauge"
-           DESTINATION "bin"
-           PERMISSIONS
-            OWNER_READ OWNER_EXECUTE OWNER_WRITE
-            GROUP_READ GROUP_EXECUTE
-            WORLD_READ WORLD_EXECUTE)
+    # comm14cux is linked by bare name above, so CMake has no recorded path
+    # to it; look it up explicitly so we know which directory to add to the
+    # rpath (otherwise the binary links but dyld can't find it at runtime)
+    find_library (COMM14CUX_LIB comm14cux)
+    if (COMM14CUX_LIB)
+      get_filename_component (COMM14CUX_LIB_DIR "${COMM14CUX_LIB}" DIRECTORY)
+      message (STATUS "Found libcomm14cux at ${COMM14CUX_LIB}")
+    else ()
+      message (SEND_ERROR "Could not find libcomm14cux!")
+    endif ()
 
-  install (DIRECTORY DESTINATION "share/doc/rovergauge" DIRECTORY_PERMISSIONS
-            OWNER_READ OWNER_EXECUTE OWNER_WRITE
-            GROUP_READ GROUP_EXECUTE
-            WORLD_READ WORLD_EXECUTE)
+    # embed an rpath so the binary can find libcomm14cux (and any other
+    # non-framework dependencies) without needing DYLD_LIBRARY_PATH.
+    # Set directly as target properties, since add_executable() for
+    # "rovergauge" runs earlier in this file and CMAKE_INSTALL_RPATH /
+    # CMAKE_BUILD_WITH_INSTALL_RPATH only take effect if set beforehand.
+    set_target_properties (rovergauge PROPERTIES
+      BUILD_WITH_INSTALL_RPATH TRUE
+      INSTALL_RPATH "${COMM14CUX_LIB_DIR}")
 
-  install (FILES "${CMAKE_SOURCE_DIR}/README.md"
-                 "${CMAKE_SOURCE_DIR}/LICENSE"
-           DESTINATION "share/doc/rovergauge"
-           PERMISSIONS
-            OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+    install (FILES "${CMAKE_CURRENT_BINARY_DIR}/rovergauge"
+             DESTINATION "bin"
+             PERMISSIONS
+              OWNER_READ OWNER_EXECUTE OWNER_WRITE
+              GROUP_READ GROUP_EXECUTE
+              WORLD_READ WORLD_EXECUTE)
 
-  # set the architecture flag that will be used by the Debian package builder
-  if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
-    set (CPACK_DEBIAN_PACKAGE_ARCHITECTURE amd64)
-  elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i686")
-    set (CPACK_DEBIAN_PACKAGE_ARCHITECTURE i386)
-  endif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+  else()
+    message (STATUS "Defaulting to Linux build environment.")
 
-  set (CPACK_GENERATOR "DEB")
-  set (CPACK_PACKAGE_NAME ${PROJECT_NAME})
-  set (CPACK_PACKAGE_VERSION_MAJOR ${ROVERGAUGE_VER_MAJOR})
-  set (CPACK_PACKAGE_VERSION_MINOR ${ROVERGAUGE_VER_MINOR})
-  set (CPACK_PACKAGE_VERSION_PATCH ${ROVERGAUGE_VER_PATCH})
-  set (CPACK_DEBIAN_PACKAGE_MAINTAINER "Colin Bourassa <colin.bourassa@gmail.com>")
-  set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "Graphical display for data read from 14CUX engine management system")
-  set (CPACK_DEBIAN_PACKAGE_SECTION "Science")
-  set (CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= 2.13), libstdc++6 (>= 4.6.3), libcomm14cux (>= 2.1.0), libqt5core5 (>= 5.8.0) | libqt5core5a (>= 5.8.0), libqt5gui5 (>= 5.8.0), libqt5widgets5 (>= 5.8.0)")
-  set (CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${ROVERGAUGE_VER_MAJOR}.${ROVERGAUGE_VER_MINOR}.${ROVERGAUGE_VER_PATCH}-${CMAKE_SYSTEM_NAME}-${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
-  set (CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
-  set (CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
+    set (CMAKE_SKIP_RPATH TRUE)
+    set (CMAKE_INSTALL_PREFIX "/usr")
 
-  include(CPack)
+    # set the installation destinations for the header files,
+    # shared library binaries, and reference utility
+    install (FILES "${CMAKE_CURRENT_BINARY_DIR}/rovergauge"
+             DESTINATION "bin"
+             PERMISSIONS
+              OWNER_READ OWNER_EXECUTE OWNER_WRITE
+              GROUP_READ GROUP_EXECUTE
+              WORLD_READ WORLD_EXECUTE)
+
+    install (DIRECTORY DESTINATION "share/doc/rovergauge" DIRECTORY_PERMISSIONS
+              OWNER_READ OWNER_EXECUTE OWNER_WRITE
+              GROUP_READ GROUP_EXECUTE
+              WORLD_READ WORLD_EXECUTE)
+
+    install (FILES "${CMAKE_SOURCE_DIR}/README.md"
+                   "${CMAKE_SOURCE_DIR}/LICENSE"
+             DESTINATION "share/doc/rovergauge"
+             PERMISSIONS
+              OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+
+    # set the architecture flag that will be used by the Debian package builder
+    if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+      set (CPACK_DEBIAN_PACKAGE_ARCHITECTURE amd64)
+    elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i686")
+      set (CPACK_DEBIAN_PACKAGE_ARCHITECTURE i386)
+    endif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+
+    set (CPACK_GENERATOR "DEB")
+    set (CPACK_PACKAGE_NAME ${PROJECT_NAME})
+    set (CPACK_PACKAGE_VERSION_MAJOR ${ROVERGAUGE_VER_MAJOR})
+    set (CPACK_PACKAGE_VERSION_MINOR ${ROVERGAUGE_VER_MINOR})
+    set (CPACK_PACKAGE_VERSION_PATCH ${ROVERGAUGE_VER_PATCH})
+    set (CPACK_DEBIAN_PACKAGE_MAINTAINER "Colin Bourassa <colin.bourassa@gmail.com>")
+    set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "Graphical display for data read from 14CUX engine management system")
+    set (CPACK_DEBIAN_PACKAGE_SECTION "Science")
+    set (CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= 2.13), libstdc++6 (>= 4.6.3), libcomm14cux (>= 2.1.0), libqt5core5 (>= 5.8.0) | libqt5core5a (>= 5.8.0), libqt5gui5 (>= 5.8.0), libqt5widgets5 (>= 5.8.0)")
+    set (CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${ROVERGAUGE_VER_MAJOR}.${ROVERGAUGE_VER_MINOR}.${ROVERGAUGE_VER_PATCH}-${CMAKE_SYSTEM_NAME}-${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
+    set (CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
+    set (CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
+
+    include(CPack)
+  endif()
 
 endif()
 
