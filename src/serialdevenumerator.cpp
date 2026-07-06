@@ -3,6 +3,10 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QFileInfoList>
+#elif defined(__APPLE__)
+#include <QDir>
+#include <QFileInfo>
+#include <QFileInfoList>
 #elif defined(WIN32)
 #include <wchar.h>
 #include <stdio.h>
