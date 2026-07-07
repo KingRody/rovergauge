@@ -1,5 +1,7 @@
 # RoverGauge
 
+If you're running macOS on Apple Silicon, this fork provides a signed and notarized build that installs and runs without any Gatekeeper warnings.
+
 ![RoverGauge screenshot](docs/rovergauge-11.0.0.png)
 
 RoverGauge is a graphical display and diagnostic tool that reads runtime data from a Lucas 14CUX engine management system. The 14CUX was paired with the Rover V8 engine in Land Rover vehicles from 1990 to 1995, and also in sports cars made by low-volume automakers (TVR, Morgan, etc.) throughout the 1990s.
